@@ -44,18 +44,66 @@ http.createServer((req, res) => {
   var data;
 
   // Switch根據不同路由要寫的部分
-  switch (req.url) {
-    case '/':
-      filePath = '/index.ejs';
-      data = "您好 xxx";
-      break;
-    case '/calculator':
-      filePath = '/index2.ejs';
-      break;
-    default:
-      filePath = req.url;
-      fileOtherFile = filePath;
-  }
+ // utils/render.js
+// -----------------------------------------------------
+// 專責：EJS 渲染、404 頁面回傳（含錯誤處理）
+// -----------------------------------------------------
+
+import fs from 'fs';
+import ejs from 'ejs';
+
+/**
+ * 渲染一般 EJS 頁面
+ * @param {*} res - HTTP 回應物件
+ * @param {*} filePath - EJS 檔案路徑
+ * @param {*} data - 傳給模板的資料（預設 {}）
+ */
+export function renderEJS(res, filePath, data = {}) {
+  fs.readFile(filePath, 'utf8', (err, template) => {
+    if (err) {
+      console.error('EJS 模板讀取錯誤:', err);
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end('500 - 模板讀取失敗');
+    }
+
+    try {
+      const html = ejs.render(template, data);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    } catch (renderErr) {
+      console.error('EJS 渲染錯誤:', renderErr);
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('500 - 模板渲染失敗');
+    }
+  });
+}
+
+/**
+ * 專門用於回傳 404 頁面
+ * 若 index3.ejs 不存在 → 回傳 500 錯誤
+ */
+export function render404(res) {
+  const filePath = './index3.ejs';
+
+  fs.readFile(filePath, 'utf8', (err, template) => {
+    if (err) {
+      console.error('404 模板讀取錯誤:', err);
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end('500 - 404 頁面載入失敗');
+    }
+
+    try {
+      const html = ejs.render(template);
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    } catch (e) {
+      console.error('404 渲染錯誤:', e);
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('500 - 404 模板渲染失敗');
+    }
+  });
+}
+
 
 
 
@@ -82,7 +130,7 @@ http.createServer((req, res) => {
   // ==========================================
 
   // MIME 類型（Content-Type）告訴瀏覽器如何處理接收到的文件
-  // 如果設定錯誤，可能導致：
+  // 如果設定錯誤，可能導致： 
   // - CSS 不生效（被當作純文字）
   // - JavaScript 無法執行
   // - 圖片無法顯示
